@@ -18,10 +18,12 @@ def generate_hash(data):
 
 @app.route('/secure-data', methods=['POST'])
 def secure_data():
+    if not request.environ.get('SSL_CLIENT_CERT'):
+        return jsonify({"error": "Autenticação do cliente falhou. Certificado necessário."}), 403
+
     data = request.json.get("message")
     if not data:
         return jsonify({"error": "Nenhuma mensagem enviada"}), 400
-    
     response = {
         "message_received": data,
         "message_hash": generate_hash(data)
@@ -31,6 +33,8 @@ def secure_data():
 if __name__ == '__main__':
     context = ssl.create_default_context(ssl.Purpose.CLIENT_AUTH)
     context.load_cert_chain(certfile="server.crt", keyfile="server.key")
+    context.load_verify_locations("client.crt")
+    context.verify_mode = ssl.CERT_REQUIRED
     context.options |= ssl.OP_NO_TLSv1 | ssl.OP_NO_TLSv1_1  # Desativa TLS 1.0 e 1.1 (obsoletos)
 
     app.run(host='0.0.0.0', port=5000, ssl_context=context)
